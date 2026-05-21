@@ -1,0 +1,12 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# App data — personal match logs and exports.
+# These are your own records; don't publish them by accident.
+# To intentionally share a log, force-add it: git add -f <file>
+mapleidle-pvp*.json
+*.csv
