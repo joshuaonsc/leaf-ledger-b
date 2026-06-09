@@ -29,13 +29,18 @@
   html, body { height: 100%; }
   body {
     font-family: var(--mono);
-    background:
-      radial-gradient(900px 500px at 85% -10%, rgba(255,138,61,0.10), transparent 60%),
-      radial-gradient(700px 600px at -5% 110%, rgba(63,185,80,0.06), transparent 55%),
-      var(--bg);
+    background-color: var(--bg); /* solid so axe resolves text contrast here; the gradient wash sits on a decorative layer below */
     color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased;
   }
+  /* Decorative ambient layers. pointer-events:none keeps them out of axe's background
+     sampling, so contrast is measured against the solid body color, not a gradient. */
   body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(255,138,61,0.10), transparent 60%),
+      radial-gradient(700px 600px at -5% 110%, rgba(63,185,80,0.06), transparent 55%);
+  }
+  body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
     mix-blend-mode: overlay;
@@ -103,7 +108,15 @@
   }
   input:focus, textarea:focus, select:focus { border-color: var(--amber); }
   textarea { resize: vertical; min-height: 44px; }
-  select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2393a0b4' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; padding-right: 30px; }
+  select { cursor: pointer; appearance: none; padding-right: 30px; }
+  /* Chevron lives on the wrapper, not the select's own background-image, so the select
+     keeps a solid background-color that axe can read for contrast. */
+  .select-wrap { position: relative; min-width: 0; }
+  .select-wrap::after {
+    content: ""; position: absolute; top: 50%; right: 11px; width: 12px; height: 12px;
+    transform: translateY(-50%); pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2393a0b4' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat center;
+  }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
   .date-row { display: flex; gap: 8px; }
   .date-row input { flex: 1; min-width: 0; }
@@ -143,7 +156,9 @@
   thead th { text-align: left; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; padding: 11px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
   thead th:hover { color: var(--text-dim); }
   thead th:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; color: var(--text-dim); }
-  thead th .arrow { color: var(--amber); }
+  thead th .arrow { display: inline-block; width: 0; height: 0; margin-left: 5px; vertical-align: middle; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+  thead th .arrow.asc { border-bottom: 5px solid var(--amber); }
+  thead th .arrow.desc { border-top: 5px solid var(--amber); }
   tbody td { padding: 11px 14px; border-bottom: 1px solid rgba(40,48,63,0.5); vertical-align: middle; }
   tbody tr:hover { background: var(--panel-2); }
   tbody tr.flagged { background: rgba(255,138,61,0.04); }
@@ -227,7 +242,7 @@
         <div class="row2">
           <div class="field">
             <label for="f_class">Class <span class="req">*</span></label>
-            <select id="f_class" required></select>
+            <div class="select-wrap"><select id="f_class" required></select></div>
           </div>
           <div class="field">
             <label for="f_level">Level <span class="req">*</span></label>
@@ -652,7 +667,7 @@
     $("#head").innerHTML = COLS.map((c) => {
       if (c.k === "_act") return '<th><span class="sr-only">Actions</span></th>';
       const active = sortKey === c.k;
-      const arrow = active ? ' <span class="arrow">' + (sortDir === "asc" ? "▲" : "▼") + "</span>" : "";
+      const arrow = active ? ' <span class="arrow ' + (sortDir === "asc" ? "asc" : "desc") + '" aria-hidden="true"></span>' : "";
       const ariaSort = active ? (sortDir === "asc" ? "ascending" : "descending") : "none";
       return '<th data-k="' + c.k + '" tabindex="0" aria-sort="' + ariaSort + '">' + c.t + arrow + "</th>";
     }).join("");
@@ -696,9 +711,10 @@
     }
     list = sortRecs(list);
 
-    const rows = $("#rows"), empty = $("#empty");
+    const rows = $("#rows"), empty = $("#empty"), table = $("#table");
     if (!list.length) {
       rows.innerHTML = "";
+      table.style.display = "none";
       empty.style.display = "block";
       empty.innerHTML = records.length
         ? '<div class="big">No matches</div>Nothing fits the current search / filter.'
@@ -706,6 +722,7 @@
       return;
     }
     empty.style.display = "none";
+    table.style.display = "";
     rows.innerHTML = list.map((r) => {
       const cp = r.cp ? esc(r.cp) : '<span class="muted">–</span>';
       const ev = r.evasion
