@@ -8,5 +8,8 @@ Thumbs.db
 # App data — personal match logs and exports.
 # These are your own records; don't publish them by accident.
 # To intentionally share a log, force-add it: git add -f <file>
-mapleidle-pvp*.json
+leafledger*.json
 *.csv
+
+# Claude Code working directory — local settings and preview helpers, not part of the app.
+.claude/
