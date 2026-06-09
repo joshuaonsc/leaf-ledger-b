@@ -59,7 +59,7 @@
   .search-wrap { margin: 24px 0 16px; position: relative; }
   .search-wrap svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; stroke: var(--text-faint); }
   #search { width: 100%; font-family: var(--mono); font-size: 16px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px 16px 48px; outline: none; transition: border-color .15s, box-shadow .15s; }
-  #search::placeholder { color: var(--text-faint); }
+  input::placeholder, textarea::placeholder { color: var(--text-faint); }
   #search:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(255,138,61,0.14); }
 
   #scout { display: none; flex-direction: column; gap: 10px; margin-bottom: 22px; }
@@ -281,9 +281,9 @@
     <section class="card">
       <div class="toolbar">
         <div class="filters" id="filters">
-          <button data-filter="all" class="active">All</button>
-          <button data-filter="loss">Losses</button>
-          <button data-filter="evasion">Evasion</button>
+          <button type="button" data-filter="all" class="active">All</button>
+          <button type="button" data-filter="loss">Losses</button>
+          <button type="button" data-filter="evasion">Evasion</button>
         </div>
         <div class="spacer"></div>
         <div class="io">
@@ -726,8 +726,8 @@
         + "<td>" + ev + "</td>"
         + "<td>" + cp + "</td>"
         + "<td>" + dateCell + "</td>"
-        + '<td><div class="actions"><button class="iconbtn" data-edit="' + esc(r.id) + '">edit</button>'
-        + '<button class="iconbtn del" data-del="' + esc(r.id) + '">del</button></div></td></tr>';
+        + '<td><div class="actions"><button type="button" class="iconbtn" data-edit="' + esc(r.id) + '">edit</button>'
+        + '<button type="button" class="iconbtn del" data-del="' + esc(r.id) + '">del</button></div></td></tr>';
     }).join("");
     rows.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => startEdit(b.dataset.edit)));
     rows.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => del(b.dataset.del)));
@@ -861,13 +861,13 @@
     if (!fsaSupported) { chip.innerHTML = ""; return; }
     let html, onClick;
     if (dbHandle) {
-      html = '<button class="ghost linked" id="dbBtn" title="Autosaving to ' + esc(dbHandle.name) + '">● ' + esc(dbHandle.name) + "</button>";
+      html = '<button type="button" class="ghost linked" id="dbBtn" title="Autosaving to ' + esc(dbHandle.name) + '">● ' + esc(dbHandle.name) + "</button>";
       onClick = unlinkDb;
     } else if (storedHandle) {
-      html = '<button class="ghost" id="dbBtn">Reconnect ' + esc(storedHandleName) + "</button>";
+      html = '<button type="button" class="ghost" id="dbBtn">Reconnect ' + esc(storedHandleName) + "</button>";
       onClick = reconnectDb;
     } else {
-      html = '<button class="ghost" id="dbBtn">Link DB file</button>';
+      html = '<button type="button" class="ghost" id="dbBtn">Link DB file</button>';
       onClick = linkDbFile;
     }
     chip.innerHTML = html;
