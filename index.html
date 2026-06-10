@@ -101,7 +101,6 @@
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
   .field label .req { color: var(--amber); }
-  .field .opt { color: var(--text-faint); text-transform: none; letter-spacing: 0; font-size: 9.5px; }
   input[type=text], input[type=number], input[type=date], textarea, select {
     width: 100%; min-width: 0; font-family: var(--mono); font-size: 13.5px; color: var(--text);
     background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; outline: none; transition: border-color .15s;
@@ -268,23 +267,23 @@
 
         <label class="check">
           <input type="checkbox" id="f_evasion">
-          <span>Evasion build: saw <b>MISS markers</b> this fight</span>
+          <span>Evasion build: <b>MISS markers</b> present</span>
         </label>
 
         <div class="row2">
           <div class="field">
-            <label for="f_cp">Combat Power <span class="opt">(optional)</span></label>
+            <label for="f_cp">Combat Power</label>
             <input type="text" id="f_cp" placeholder="1087  or  3 T 42 B" spellcheck="false">
           </div>
           <div class="field">
-            <label for="f_companions">Companions <span class="opt">(optional)</span></label>
+            <label for="f_companions">Companions</label>
             <input type="text" id="f_companions" placeholder="e.g. Lv70 Leg X, Lv55 Epic Y">
           </div>
         </div>
 
         <div class="field">
-          <label for="f_notes">Notes <span class="opt">(optional)</span></label>
-          <textarea id="f_notes" placeholder="anything worth remembering"></textarea>
+          <label for="f_notes">Notes</label>
+          <textarea id="f_notes" placeholder="Anything worth remembering"></textarea>
         </div>
 
         <button type="submit" class="primary" id="submitBtn">Save Match</button>
