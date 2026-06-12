@@ -1,0 +1,10 @@
+{
+  "name": "leaf-ledger-axe-check",
+  "private": true,
+  "type": "module",
+  "description": "CI-only: runs axe-core in headless Chromium and fails the build on violations.",
+  "dependencies": {
+    "axe-core": "^4.10.0",
+    "puppeteer": "^23.0.0"
+  }
+}

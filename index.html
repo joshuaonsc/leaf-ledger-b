@@ -3,7 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MapleIdle PvP Scout — Matchup Tracker</title>
+<meta name="description" content="Local-first web app for MapleStory Idle RPG PvP. Log fights, flag evasion builds, and scout any username for an AVOID / CAUTION / FAVORABLE verdict before you challenge.">
+<meta name="theme-color" content="#0c0f16">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Leaf Ledger · MapleStory Idle RPG PvP">
+<meta property="og:description" content="Scout a username before you challenge. Log fights, flag evasion builds, get an AVOID / CAUTION / FAVORABLE verdict.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<title>Leaf Ledger · MapleStory Idle RPG PvP tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -11,9 +18,9 @@
   :root {
     --bg: #0c0f16; --bg-2: #11151f; --panel: #161b27; --panel-2: #1c2230;
     --border: #28303f; --border-bright: #3a4459;
-    --text: #e7ecf3; --text-dim: #93a0b4; --text-faint: #5f6c80;
+    --text: #e7ecf3; --text-dim: #93a0b4; --text-faint: #828fa4;
     --amber: #ff8a3d; --amber-soft: #ffb27a;
-    --win: #3fb950; --loss: #f85149; --caution: #e3b341;
+    --win: #3fb950; --loss: #f85149; --loss-bright: #ff6f66; --caution: #e3b341;
     --shadow: 0 18px 40px -18px rgba(0,0,0,0.7);
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --display: 'Bricolage Grotesque', system-ui, sans-serif;
@@ -22,13 +29,18 @@
   html, body { height: 100%; }
   body {
     font-family: var(--mono);
-    background:
-      radial-gradient(900px 500px at 85% -10%, rgba(255,138,61,0.10), transparent 60%),
-      radial-gradient(700px 600px at -5% 110%, rgba(63,185,80,0.06), transparent 55%),
-      var(--bg);
+    background-color: var(--bg); /* solid so axe resolves text contrast here; the gradient wash sits on a decorative layer below */
     color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased;
   }
+  /* Decorative ambient layers. pointer-events:none keeps them out of axe's background
+     sampling, so contrast is measured against the solid body color, not a gradient. */
   body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(900px 500px at 85% -10%, rgba(255,138,61,0.10), transparent 60%),
+      radial-gradient(700px 600px at -5% 110%, rgba(63,185,80,0.06), transparent 55%);
+  }
+  body::after {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
     mix-blend-mode: overlay;
@@ -52,15 +64,17 @@
   .search-wrap { margin: 24px 0 16px; position: relative; }
   .search-wrap svg { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; stroke: var(--text-faint); }
   #search { width: 100%; font-family: var(--mono); font-size: 16px; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px 16px 48px; outline: none; transition: border-color .15s, box-shadow .15s; }
-  #search::placeholder { color: var(--text-faint); }
+  input::placeholder, textarea::placeholder { color: var(--text-faint); }
   #search:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(255,138,61,0.14); }
 
   #scout { display: none; flex-direction: column; gap: 10px; margin-bottom: 22px; }
   .verdict { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; padding: 14px 16px; }
   .verdict.avoid { border-left-color: var(--loss); }
+  .verdict.caution { border-left-color: var(--caution); }
   .verdict.favorable { border-left-color: var(--win); }
   .verdict .badge { font-family: var(--display); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; padding: 6px 12px; border-radius: 6px; text-transform: uppercase; white-space: nowrap; }
-  .verdict.avoid .badge { background: rgba(248,81,73,0.16); color: var(--loss); }
+  .verdict.avoid .badge { background: rgba(248,81,73,0.16); color: var(--loss-bright); }
+  .verdict.caution .badge { background: rgba(227,179,65,0.16); color: var(--caution); }
   .verdict.favorable .badge { background: rgba(63,185,80,0.16); color: var(--win); }
   .verdict .who { font-weight: 700; color: var(--text); }
   .verdict .who b { color: var(--amber-soft); }
@@ -68,25 +82,44 @@
   .verdict .meta b.l { color: var(--loss); } .verdict .meta b.w { color: var(--win); } .verdict .meta b.e { color: var(--amber); }
 
   .grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+  .grid > .card { min-width: 0; } /* let the 1fr card shrink so the table scrolls inside it instead of overflowing the page */
   @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
 
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
   .card h2 { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: 0.02em; padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .card h2 .tag { font-family: var(--mono); font-size: 10px; color: var(--text-faint); font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; }
+  .card-toggle { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer; }
+  .card-toggle .chev { color: var(--text-faint); transition: transform .2s ease; flex: none; }
+  .card-toggle:hover .chev { color: var(--text-dim); }
+  .card-toggle:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 4px; }
+  #logCard.collapsed .card-toggle .chev { transform: rotate(-90deg); }
+  #logCard.collapsed h2 { border-bottom-color: transparent; }
+  .card-body { overflow: hidden; transition: max-height .26s ease; }
+  #logCard.collapsed .card-body { max-height: 0; }
 
   form { padding: 16px 18px; display: flex; flex-direction: column; gap: 13px; }
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field label { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-faint); }
   .field label .req { color: var(--amber); }
-  .field .opt { color: var(--text-faint); text-transform: none; letter-spacing: 0; font-size: 9.5px; }
   input[type=text], input[type=number], input[type=date], textarea, select {
     width: 100%; min-width: 0; font-family: var(--mono); font-size: 13.5px; color: var(--text);
     background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; outline: none; transition: border-color .15s;
   }
   input:focus, textarea:focus, select:focus { border-color: var(--amber); }
   textarea { resize: vertical; min-height: 44px; }
-  select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2393a0b4' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 11px center; padding-right: 30px; }
+  select { cursor: pointer; appearance: none; padding-right: 30px; }
+  /* Chevron lives on the wrapper, not the select's own background-image, so the select
+     keeps a solid background-color that axe can read for contrast. */
+  .select-wrap { position: relative; min-width: 0; }
+  .select-wrap::after {
+    content: ""; position: absolute; top: 50%; right: 11px; width: 12px; height: 12px;
+    transform: translateY(-50%); pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%2393a0b4' stroke-width='2'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat center;
+  }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .date-row { display: flex; gap: 8px; }
+  .date-row input { flex: 1; min-width: 0; }
+  .date-row .ghost { flex: none; }
 
   .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .seg button { font-family: var(--mono); font-weight: 700; font-size: 13px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text-dim); cursor: pointer; transition: all .12s; }
@@ -121,17 +154,22 @@
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   thead th { text-align: left; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-faint); font-weight: 500; padding: 11px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; cursor: pointer; user-select: none; }
   thead th:hover { color: var(--text-dim); }
-  thead th .arrow { color: var(--amber); }
+  thead th:focus-visible { outline: 2px solid var(--amber); outline-offset: -2px; color: var(--text-dim); }
+  thead th .arrow { display: inline-block; width: 0; height: 0; margin-left: 5px; vertical-align: middle; border-left: 4px solid transparent; border-right: 4px solid transparent; }
+  thead th .arrow.asc { border-bottom: 5px solid var(--amber); }
+  thead th .arrow.desc { border-top: 5px solid var(--amber); }
   tbody td { padding: 11px 14px; border-bottom: 1px solid rgba(40,48,63,0.5); vertical-align: middle; }
   tbody tr:hover { background: var(--panel-2); }
   tbody tr.flagged { background: rgba(255,138,61,0.04); }
   .uname { font-weight: 700; color: var(--text); }
   .pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px; letter-spacing: 0.04em; }
   .pill.win { background: rgba(63,185,80,0.15); color: var(--win); }
-  .pill.loss { background: rgba(248,81,73,0.15); color: var(--loss); }
-  .evade-dot { color: var(--amber); font-weight: 700; }
+  .pill.loss { background: rgba(248,81,73,0.15); color: var(--loss-bright); }
+  .pill.evade { display: inline-flex; align-items: center; gap: 4px; background: rgba(255,138,61,0.15); color: var(--amber); vertical-align: middle; }
+  .pill.evade svg { width: 11px; height: 11px; flex: none; }
   .muted { color: var(--text-faint); }
-  .miss { color: var(--text-faint); font-style: italic; opacity: 0.85; }
+  .miss { color: var(--text-faint); font-style: italic; }
+  .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
   .actions { display: flex; gap: 6px; }
   .iconbtn { background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-dim); cursor: pointer; padding: 4px 8px; font-family: var(--mono); font-size: 11px; transition: all .12s; }
   .iconbtn:hover { color: var(--text); border-color: var(--border-bright); }
@@ -141,15 +179,22 @@
   .empty .big { font-family: var(--display); font-size: 17px; color: var(--text-dim); margin-bottom: 6px; }
 
   details.note { margin-top: 22px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
-  details.note summary { cursor: pointer; padding: 13px 16px; font-size: 12.5px; color: var(--text-dim); list-style: none; }
+  details.note summary { cursor: pointer; padding: 13px 16px; font-size: 12.5px; color: var(--text-dim); list-style: none; display: flex; align-items: center; gap: 8px; }
   details.note summary::-webkit-details-marker { display: none; }
-  details.note summary::before { content: "▸ "; color: var(--amber); }
-  details.note[open] summary::before { content: "▾ "; }
+  details.note summary .chev { color: var(--text-faint); flex: none; transition: transform .2s ease; transform: rotate(-90deg); }
+  details.note summary:hover .chev { color: var(--text-dim); }
+  details.note[open] summary .chev { transform: rotate(0deg); }
   details.note .body { padding: 0 16px 16px; font-size: 12.5px; color: var(--text-dim); line-height: 1.65; }
   details.note .body code { background: var(--bg-2); padding: 1px 5px; border-radius: 4px; color: var(--amber-soft); }
 
-  footer { margin-top: 30px; text-align: center; font-size: 11px; color: var(--text-faint); }
+  footer { margin-top: 36px; text-align: center; font-size: 11.5px; color: var(--text-faint); line-height: 1.7; }
+  footer p { margin: 2px 0; }
   footer a { color: var(--text-dim); }
+  footer a:hover { color: var(--text); }
+  footer .foot-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 9px; }
+  footer .foot-links a { color: var(--amber-soft); text-decoration: none; font-size: 12.5px; }
+  footer .foot-links a:hover { color: var(--amber); text-decoration: underline; }
+  footer .foot-links .sep { color: var(--text-faint); }
 
   .editing-banner { display: none; background: rgba(255,138,61,0.12); border: 1px solid var(--amber); color: var(--amber-soft); font-size: 11.5px; padding: 8px 11px; border-radius: 8px; }
 </style>
@@ -159,101 +204,107 @@
 
   <header>
     <div class="brand">
-      <div class="kicker">MapleStory Idle RPG · PvP Intel</div>
-      <h1>Matchup <span>Scout</span></h1>
-      <p>Log who you fought, win or loss, and flag evasion builds. Search a username before you challenge to know whether to skip the matchup.</p>
+      <div class="kicker">MapleStory Idle RPG · PvP</div>
+      <h1>Leaf <span>Ledger</span></h1>
+      <p>Log who you fought and how you fought.</p>
     </div>
     <div class="stats" id="stats"></div>
   </header>
 
+  <main>
   <div class="search-wrap">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-    <input id="search" type="text" placeholder="Search a username or class (DK, I/L…) before challenging…" autocomplete="off" spellcheck="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" focusable="false" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="search" type="text" aria-label="Search a username or class before challenging" placeholder="Search a username or class (DK, I/L…) before challenging…" autocomplete="off" spellcheck="false">
   </div>
 
   <div id="scout"></div>
 
   <div class="grid">
 
-    <section class="card">
-      <h2>Log a Match <span class="tag" id="formMode">New entry</span></h2>
+    <section class="card" id="logCard">
+      <h2>
+        <button type="button" class="card-toggle" id="logToggle" aria-expanded="true" aria-controls="logBody">
+          <svg class="chev" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4"/></svg>
+          Log a Match
+        </button>
+        <span class="tag" id="formMode">New entry</span>
+      </h2>
+      <div class="card-body" id="logBody">
       <form id="form" autocomplete="off">
         <div class="editing-banner" id="editBanner"></div>
 
         <div class="field">
-          <label>Username <span class="req">*</span></label>
+          <label for="f_username">Username <span class="req">*</span></label>
           <input type="text" id="f_username" required spellcheck="false">
         </div>
 
         <div class="row2">
           <div class="field">
-            <label>Class <span class="req">*</span></label>
-            <select id="f_class" required></select>
+            <label for="f_class">Class <span class="req">*</span></label>
+            <div class="select-wrap"><select id="f_class" required></select></div>
           </div>
           <div class="field">
-            <label>Level <span class="req">*</span></label>
+            <label for="f_level">Level <span class="req">*</span></label>
             <input type="number" id="f_level" min="0" required>
           </div>
         </div>
 
         <div class="field">
-          <label>Result <span class="req">*</span></label>
-          <div class="seg">
+          <label id="lbl-result">Result <span class="req">*</span></label>
+          <div class="seg" role="group" aria-labelledby="lbl-result">
             <button type="button" data-out="win" aria-pressed="false">WON</button>
             <button type="button" data-out="loss" aria-pressed="false">LOST</button>
           </div>
         </div>
 
         <div class="field">
-          <label>Date <span class="req">*</span></label>
-          <input type="date" id="f_date" required>
+          <label for="f_date">Date <span class="req">*</span></label>
+          <div class="date-row">
+            <input type="date" id="f_date" required>
+            <button type="button" class="ghost" id="todayBtn" title="Set date to today">Today</button>
+          </div>
         </div>
 
         <label class="check">
           <input type="checkbox" id="f_evasion">
-          <span>Evasion build — saw <b>MISS markers</b> this fight</span>
+          <span>Evasion build: <b>MISS markers</b> present</span>
         </label>
 
         <div class="row2">
           <div class="field">
-            <label>Combat Power <span class="opt">(optional)</span></label>
+            <label for="f_cp">Combat Power</label>
             <input type="text" id="f_cp" placeholder="1087  or  3 T 42 B" spellcheck="false">
           </div>
           <div class="field">
-            <label>Companions <span class="opt">(optional)</span></label>
+            <label for="f_companions">Companions</label>
             <input type="text" id="f_companions" placeholder="e.g. Lv70 Leg X, Lv55 Epic Y">
           </div>
         </div>
 
         <div class="field">
-          <label>Notes <span class="opt">(optional)</span></label>
-          <textarea id="f_notes" placeholder="anything worth remembering"></textarea>
+          <label for="f_notes">Notes</label>
+          <textarea id="f_notes" placeholder="Anything worth remembering"></textarea>
         </div>
 
         <button type="submit" class="primary" id="submitBtn">Save Match</button>
         <button type="button" class="ghost" id="cancelEdit" style="display:none">Cancel edit</button>
       </form>
+      </div>
     </section>
 
     <section class="card">
       <div class="toolbar">
         <div class="filters" id="filters">
-          <button data-filter="all" class="active">All</button>
-          <button data-filter="loss">Losses</button>
-          <button data-filter="evasion">Evasion</button>
+          <button type="button" data-filter="all" class="active">All</button>
+          <button type="button" data-filter="loss">Losses</button>
+          <button type="button" data-filter="evasion">Evasion</button>
         </div>
         <div class="spacer"></div>
         <div class="io">
           <span id="dbChip"></span>
-          <button class="ghost" id="importBtn">Import</button>
-          <div class="exportwrap">
-            <button class="ghost" id="exportBtn">Export ▾</button>
-            <div class="menu" id="exportMenu">
-              <button data-fmt="json">Export JSON</button>
-              <button data-fmt="csv">Export CSV</button>
-            </div>
-          </div>
-          <input type="file" id="importFile" accept="application/json" hidden>
+          <button type="button" class="ghost" id="importBtn">Import</button>
+          <button type="button" class="ghost" id="exportBtn">Export</button>
+          <input type="file" id="importFile" accept="application/json" aria-label="Import a JSON backup file" hidden>
         </div>
       </div>
       <div class="table-scroll">
@@ -267,18 +318,30 @@
 
   </div>
 
-  <details class="note">
-    <summary>About the evasion meta &amp; how this tracker helps</summary>
+  <details class="note" id="aboutNote">
+    <summary>
+      <svg class="chev" viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 4l4 4 4-4"/></svg>
+      How evasion works, and how Leaf Ledger helps
+    </summary>
     <div class="body">
-      In MapleStory Idle PvP, the read is roughly: if an attacker's accuracy exceeds the target's evasion, hits land; once evasion meets or exceeds accuracy, the attacker can miss, with miss chance scaling up as the evasion–accuracy gap widens. Verify exact numbers on the in-game info page, since values change between patches.
+      In MapleStory Idle PvP, hits work roughly like this: while an attacker's accuracy stays above the target's evasion, hits land. Once evasion catches up to accuracy, the attacker starts to miss, and the miss rate climbs as evasion pulls further ahead.
       <br><br>
-      The practical problem is that late-game you cannot tell from the match page whether an opponent has stacked evasion — combat power alone stops being a reliable tell. This tracker is an empirical workaround: record outcomes against specific usernames, tick the <b>evasion</b> box for fights where you saw MISS markers, and <b>search a name before challenging</b>. A name returning an <code>AVOID</code> verdict (any prior loss or evasion flag) is one to refresh past. Data is stored locally via <code>localStorage</code>; link a <code>.json</code> file (Chromium browsers) for autosave to disk, or use Import/Export to back up and share.
+      The catch is that late-game you can't tell from the match page whether someone has stacked evasion. Combat power alone stops being a reliable tell. Leaf Ledger reads it empirically: log who you fight, tick the <b>evasion</b> box when you see <b>MISS markers</b>, and search a name before you challenge it. You get a verdict: <code>AVOID</code> (you've lost to them before, so refresh past), <code>CAUTION</code> (only wins on record, but they run evasion and may have grown stronger since you last beat them, so it's no guarantee), or <code>FAVORABLE</code> (clean wins, no evasion seen).
+      <br><br>
+      Everything stays in your browser. Link a <code>.json</code> file (Chrome/Edge) to autosave changes to disk, or use Import / Export to back up and share.
     </div>
   </details>
+  </main>
 
   <footer>
-    Local-only · data lives in this browser. Link a DB file or Export to back up. ·
-    <a href="https://www.reddit.com/r/MapleIdle/" target="_blank" rel="noopener">r/MapleIdle</a>
+    <nav class="foot-links" aria-label="Footer">
+      <a href="#aboutNote" id="aboutLink">About</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="https://github.com/joshuaonsc/leaf-ledger" target="_blank" rel="noopener">Source ↗</a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="https://www.reddit.com/r/MapleIdle/" target="_blank" rel="noopener">r/MapleIdle ↗</a>
+    </nav>
+    <p>Built by <a href="https://github.com/joshuaonsc" target="_blank" rel="noopener">joshuaonsc ↗</a> · MIT License · Fan-made, not affiliated with Nexon or MapleStory.</p>
   </footer>
 
 </div>
@@ -286,7 +349,7 @@
 <script>
 (function () {
   "use strict";
-  const KEY = "mapleidle_pvp_tracker_v1";
+  const KEY = "leafledger_v1";
   const $ = (s) => document.querySelector(s);
 
   // 12 canonical classes shown in the UI (full names only).
@@ -296,7 +359,7 @@
     "Bowmaster", "Marksman", "Night Lord", "Shadower",
     "Buccaneer", "Corsair"
   ];
-  // Backend-only shortform aliases — used for search matching, never surfaced.
+  // Backend-only shortform aliases, used for search matching, never surfaced.
   const CLASS_ALIASES = {
     "Dark Knight": ["dk"],
     "Arch Mage (Ice/Lightning)": ["i/l", "il", "ice/lightning", "ice lightning"],
@@ -402,7 +465,7 @@
       if (c === selected) has = true;
       html += '<option value="' + esc(c) + '"' + (c === selected ? " selected" : "") + ">" + esc(c) + "</option>";
     });
-    // legacy value from older records — keep it selectable
+    // legacy value from older records, keep it selectable
     if (selected && !has) html += '<option value="' + esc(selected) + '" selected>' + esc(selected) + " (legacy)</option>";
     $("#f_class").innerHTML = html;
   }
@@ -435,8 +498,37 @@
     $("#formMode").textContent = "New entry";
     $("#cancelEdit").style.display = "none";
     $("#editBanner").style.display = "none";
+    $("#f_username").focus(); // land in the username field, ready for the next entry
   }
   $("#cancelEdit").addEventListener("click", resetForm);
+
+  /* ---------- collapsible "Log a Match" (rolls up to free space) ---------- */
+  const LOG_COLLAPSE_KEY = "leafledger_logcollapsed";
+  const logCard = $("#logCard"), logBody = $("#logBody"), logToggle = $("#logToggle");
+  function setLogCollapsed(collapsed, persist, animate) {
+    const initialized = logBody.style.maxHeight !== "";
+    if (initialized && logCard.classList.contains("collapsed") === collapsed) return; // no change
+    logCard.classList.toggle("collapsed", collapsed);
+    logToggle.setAttribute("aria-expanded", String(!collapsed));
+    logBody.inert = collapsed; // keep collapsed fields out of tab order / a11y tree
+    if (animate === false) {
+      logBody.style.maxHeight = collapsed ? "0px" : "none";
+    } else if (collapsed) {
+      logBody.style.maxHeight = logBody.scrollHeight + "px";
+      void logBody.offsetHeight; // reflow so the next change animates
+      logBody.style.maxHeight = "0px";
+    } else {
+      logBody.style.maxHeight = logBody.scrollHeight + "px";
+      // after the open animation, release the cap so the notes textarea can still grow
+      setTimeout(() => { if (!logCard.classList.contains("collapsed")) logBody.style.maxHeight = "none"; }, 300);
+    }
+    if (persist !== false) { try { localStorage.setItem(LOG_COLLAPSE_KEY, collapsed ? "1" : "0"); } catch (e) {} }
+  }
+  logToggle.addEventListener("click", () => setLogCollapsed(!logCard.classList.contains("collapsed")));
+  setLogCollapsed(localStorage.getItem(LOG_COLLAPSE_KEY) === "1", false, false); // restore saved state (no animation)
+
+  /* ---------- "Today" date shortcut ---------- */
+  $("#todayBtn").addEventListener("click", () => { $("#f_date").value = todayStr(); });
 
   $("#form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -473,6 +565,7 @@
   function startEdit(id) {
     const r = records.find((x) => x.id === id);
     if (!r) return;
+    setLogCollapsed(false, false); // open the form for editing without changing the saved preference
     editingId = id;
     $("#f_username").value = r.username;
     buildClassOptions(r.className);
@@ -488,7 +581,7 @@
     $("#cancelEdit").style.display = "block";
     const banner = $("#editBanner");
     banner.style.display = "block";
-    banner.textContent = "Editing match vs " + r.username + " — save to apply.";
+    banner.textContent = "Editing match vs " + r.username + ". Save to apply.";
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -503,6 +596,20 @@
 
   /* ---------- search / scout report ---------- */
   $("#search").addEventListener("input", render);
+  // Press "/" anywhere outside a field to jump to the scout search (faster pre-fight checks).
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "/" && !/^(input|textarea|select)$/i.test(e.target.tagName || "")) {
+      e.preventDefault();
+      $("#search").focus();
+    }
+  });
+  // Footer "About" link opens the in-page note and scrolls to it.
+  $("#aboutLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    const note = $("#aboutNote");
+    note.open = true;
+    note.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   function renderScout(q) {
     const box = $("#scout");
@@ -527,12 +634,14 @@
     box.innerHTML = Object.values(groups)
       .sort((a, b) => (b.last || "").localeCompare(a.last || ""))
       .map((g) => {
-        const avoid = g.l > 0 || g.e > 0;
+        // Verdict tiers: any loss → AVOID; only wins but evasion seen → CAUTION; clean wins → FAVORABLE.
+        const verdict = g.l > 0 ? "avoid" : (g.e > 0 ? "caution" : "favorable");
+        const label = verdict === "avoid" ? "AVOID" : (verdict === "caution" ? "CAUTION" : "FAVORABLE");
         const meta = '<span class="meta"><b class="w">' + g.w + "W</b> · <b class=\"l\">" + g.l + "L</b>"
           + (g.e ? ' · <b class="e">' + g.e + " evasion-flag" + (g.e > 1 ? "s" : "") + "</b>" : "")
           + " · last " + esc(g.last) + "</span>";
-        return '<div class="verdict ' + (avoid ? "avoid" : "favorable") + '">'
-          + '<span class="badge">' + (avoid ? "AVOID" : "FAVORABLE") + "</span>"
+        return '<div class="verdict ' + verdict + '">'
+          + '<span class="badge">' + label + "</span>"
           + '<span class="who">vs <b>' + esc(g.name) + "</b></span>" + meta + "</div>";
       }).join("");
   }
@@ -555,16 +664,21 @@
 
   function renderHead() {
     $("#head").innerHTML = COLS.map((c) => {
-      if (c.k === "_act") return "<th></th>";
-      const arrow = sortKey === c.k ? ' <span class="arrow">' + (sortDir === "asc" ? "▲" : "▼") + "</span>" : "";
-      return '<th data-k="' + c.k + '">' + c.t + arrow + "</th>";
+      if (c.k === "_act") return '<th><span class="sr-only">Actions</span></th>';
+      const active = sortKey === c.k;
+      const arrow = active ? ' <span class="arrow ' + (sortDir === "asc" ? "asc" : "desc") + '" aria-hidden="true"></span>' : "";
+      const ariaSort = active ? (sortDir === "asc" ? "ascending" : "descending") : "none";
+      return '<th data-k="' + c.k + '" tabindex="0" aria-sort="' + ariaSort + '">' + c.t + arrow + "</th>";
     }).join("");
+    const applySort = (k) => {
+      if (sortKey === k) sortDir = sortDir === "asc" ? "desc" : "asc";
+      else { sortKey = k; sortDir = (k === "date" || k === "level" || k === "cp") ? "desc" : "asc"; }
+      render();
+    };
     $("#head").querySelectorAll("th[data-k]").forEach((th) => {
-      th.addEventListener("click", () => {
-        const k = th.dataset.k;
-        if (sortKey === k) sortDir = sortDir === "asc" ? "desc" : "asc";
-        else { sortKey = k; sortDir = (k === "date" || k === "level" || k === "cp") ? "desc" : "asc"; }
-        render();
+      th.addEventListener("click", () => applySort(th.dataset.k));
+      th.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); applySort(th.dataset.k); }
       });
     });
   }
@@ -596,9 +710,10 @@
     }
     list = sortRecs(list);
 
-    const rows = $("#rows"), empty = $("#empty");
+    const rows = $("#rows"), empty = $("#empty"), table = $("#table");
     if (!list.length) {
       rows.innerHTML = "";
+      table.style.display = "none";
       empty.style.display = "block";
       empty.innerHTML = records.length
         ? '<div class="big">No matches</div>Nothing fits the current search / filter.'
@@ -606,9 +721,14 @@
       return;
     }
     empty.style.display = "none";
+    table.style.display = "";
     rows.innerHTML = list.map((r) => {
-      const cp = r.cp ? esc(r.cp) : '<span class="muted">—</span>';
-      const ev = r.evasion ? '<span class="evade-dot" title="Evasion build — MISS markers seen">● flag</span>' : '<span class="muted">—</span>';
+      const cp = r.cp ? esc(r.cp) : '<span class="muted">–</span>';
+      const ev = r.evasion
+        ? '<span class="pill evade" title="Evasion build: MISS markers seen">'
+          + '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">'
+          + '<circle cx="8" cy="8" r="4.5"/><path d="M8 .8v2.2M8 13v2.2M.8 8h2.2M13 8h2.2"/></svg>EVADE</span>'
+        : '<span class="muted">–</span>';
       const extra = [r.companions, r.notes].filter(Boolean).map(esc).join(" · ");
       const sub = extra ? '<div class="muted" style="font-size:10.5px;margin-top:3px">' + extra + "</div>" : "";
       const clsCell = isUnknownClass(r.className) ? '<span class="miss">Unknown</span>' : esc(r.className);
@@ -622,8 +742,8 @@
         + "<td>" + ev + "</td>"
         + "<td>" + cp + "</td>"
         + "<td>" + dateCell + "</td>"
-        + '<td><div class="actions"><button class="iconbtn" data-edit="' + r.id + '">edit</button>'
-        + '<button class="iconbtn del" data-del="' + r.id + '">del</button></div></td></tr>';
+        + '<td><div class="actions"><button type="button" class="iconbtn" data-edit="' + esc(r.id) + '">edit</button>'
+        + '<button type="button" class="iconbtn del" data-del="' + esc(r.id) + '">del</button></div></td></tr>';
     }).join("");
     rows.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => startEdit(b.dataset.edit)));
     rows.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => del(b.dataset.del)));
@@ -649,21 +769,19 @@
     a.href = url; a.download = name; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  function exportJson() { download("mapleidle-pvp-" + todayStr() + ".json", JSON.stringify(records, null, 2), "application/json"); }
+  function exportJson() { download("leafledger-" + todayStr() + ".json", JSON.stringify(records, null, 2), "application/json"); }
+  // Retained but not wired to the UI in v1 (CSV is lossy: it drops `id`, so it can't be re-imported).
+  // To re-enable later, add an Export menu/button that calls this.
   function exportCsv() {
     const cols = ["username", "className", "level", "outcome", "evasion", "cp", "date", "companions", "notes"];
     const q = (v) => { v = v == null ? "" : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const lines = [cols.join(",")].concat(records.map((r) => cols.map((c) => q(r[c])).join(",")));
-    download("mapleidle-pvp-" + todayStr() + ".csv", lines.join("\n"), "text/csv");
+    download("leafledger-" + todayStr() + ".csv", lines.join("\n"), "text/csv");
   }
 
-  const exportMenu = $("#exportMenu");
-  $("#exportBtn").addEventListener("click", (e) => { e.stopPropagation(); exportMenu.classList.toggle("open"); });
-  document.addEventListener("click", () => exportMenu.classList.remove("open"));
-  exportMenu.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
-    exportMenu.classList.remove("open");
-    if (b.dataset.fmt === "json") exportJson(); else exportCsv();
-  }));
+  // Export is JSON-only in the UI. exportCsv() above is retained for a future re-enable.
+  // CSV is intentionally not exposed because it drops `id`, so a CSV file can't be re-imported.
+  $("#exportBtn").addEventListener("click", exportJson);
 
   $("#importBtn").addEventListener("click", () => $("#importFile").click());
   $("#importFile").addEventListener("change", (e) => {
@@ -686,7 +804,7 @@
   /* ---------- File System Access: autosave to a .json on disk ---------- */
   function idbDB() {
     return new Promise((res, rej) => {
-      const r = indexedDB.open("mapleidle-pvp", 1);
+      const r = indexedDB.open("leafledger", 1);
       r.onupgradeneeded = () => r.result.createObjectStore("kv");
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
@@ -724,7 +842,7 @@
   async function linkDbFile() {
     try {
       const handle = await window.showSaveFilePicker({
-        suggestedName: "mapleidle-pvp.json",
+        suggestedName: "leafledger.json",
         types: [{ description: "JSON", accept: { "application/json": [".json"] } }]
       });
       await readHandleInto(handle); // merge any existing data first
@@ -759,13 +877,13 @@
     if (!fsaSupported) { chip.innerHTML = ""; return; }
     let html, onClick;
     if (dbHandle) {
-      html = '<button class="ghost linked" id="dbBtn" title="Autosaving to ' + esc(dbHandle.name) + '">● ' + esc(dbHandle.name) + "</button>";
+      html = '<button type="button" class="ghost linked" id="dbBtn" title="Autosaving to ' + esc(dbHandle.name) + '">● ' + esc(dbHandle.name) + "</button>";
       onClick = unlinkDb;
     } else if (storedHandle) {
-      html = '<button class="ghost" id="dbBtn">Reconnect ' + esc(storedHandleName) + "</button>";
+      html = '<button type="button" class="ghost" id="dbBtn">Reconnect ' + esc(storedHandleName) + "</button>";
       onClick = reconnectDb;
     } else {
-      html = '<button class="ghost" id="dbBtn">Link DB file</button>';
+      html = '<button type="button" class="ghost" id="dbBtn">Link DB file</button>';
       onClick = linkDbFile;
     }
     chip.innerHTML = html;

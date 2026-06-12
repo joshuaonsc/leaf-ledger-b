@@ -1,0 +1,61 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  html-validate:
+    name: HTML validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate index.html
+        run: npx --yes html-validate@9 index.html
+
+  accessibility:
+    name: Accessibility (axe-core, fails on violations)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install axe runner (puppeteer + axe-core)
+        run: npm install --prefix .github/axe
+      - name: Serve the page and run axe
+        run: |
+          python3 -m http.server 8080 >/dev/null 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080/index.html >/dev/null && break
+            sleep 1
+          done
+          node .github/axe/check.mjs http://localhost:8080/index.html
+
+  links:
+    name: Link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check links in README and index.html
+        uses: lycheeverse/lychee-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: >-
+            --no-progress
+            --accept 200,206,301,302,307,308,403,429
+            --max-retries 2
+            --exclude gstatic\.com
+            --exclude googleapis\.com
+            --exclude reddit\.com
+            README.md index.html
+          fail: true
