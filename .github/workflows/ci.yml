@@ -14,10 +14,10 @@ jobs:
     name: HTML validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Validate index.html
         run: npx --yes html-validate@9 index.html
 
@@ -25,10 +25,10 @@ jobs:
     name: Accessibility (axe-core, fails on violations)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
-          node-version: "20"
+          node-version: "22"
       - name: Install axe runner (puppeteer + axe-core)
         run: npm install --prefix .github/axe
       - name: Serve the page and run axe
@@ -44,7 +44,7 @@ jobs:
     name: Link check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check links in README and index.html
         uses: lycheeverse/lychee-action@v2
         env:
